@@ -4,8 +4,10 @@ import lyc.compiler.Parser;
 import lyc.compiler.factories.FileFactory;
 import lyc.compiler.factories.ParserFactory;
 import lyc.compiler.files.FileOutputWriter;
-import lyc.compiler.files.SymbolTableGenerator;
-import lyc.compiler.files.IntermediateCodeGenerator;
+import lyc.compiler.symboltable.SymbolTableGenerator;
+import lyc.compiler.intermediatecode.IntermediateCodeGenerator;
+import lyc.compiler.intermediatecode.IntermediateCode;
+import lyc.compiler.ast.Node;
 
 import java.io.IOException;
 import java.io.Reader;
@@ -22,7 +24,8 @@ public final class Compiler {
 
         try (Reader reader = FileFactory.create(args[0])) {
             Parser parser = ParserFactory.create(reader);
-            parser.parse();
+            Node ast = (Node) parser.parse().value; 
+            IntermediateCode.generate(ast);         
             FileOutputWriter.writeOutput("symbol-table.txt", new SymbolTableGenerator());
             FileOutputWriter.writeOutput("intermediate-code.txt", new IntermediateCodeGenerator());
             FileOutputWriter.writeOutput("final.asm", new SymbolTableGenerator());

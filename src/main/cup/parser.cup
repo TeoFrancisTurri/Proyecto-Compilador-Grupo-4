@@ -1,11 +1,13 @@
 package lyc.compiler;
 
 import java_cup.runtime.*;
-import lyc.compiler.files.SymbolTableManager;
 import java.util.ArrayList;
 import java.util.List;
-import lyc.compiler.files.DataType;
+import lyc.compiler.symboltable.SymbolTableManager;
+import lyc.compiler.symboltable.DataType;
+import lyc.compiler.symboltable.SymbolEntry;
 import lyc.compiler.model.*;
+import lyc.compiler.ast.*;
 
 
 class Parser;
@@ -23,9 +25,9 @@ terminal OPEN_BRACE;
 terminal CLOSE_BRACE;
 terminal OPEN_PARENTHESIS;
 terminal CLOSE_PARENTHESIS;
-terminal int INTEGER_CONSTANT;
-terminal float FLOAT_CONSTANT;
-terminal String STRING_CONSTANT;
+terminal int CTE_INT;
+terminal float CTE_FLOAT;
+terminal String CTE_STRING;
 terminal String IDENTIFIER;
 terminal COMMA;
 terminal COLON;
@@ -51,75 +53,258 @@ terminal LONG;
 terminal MOD;
 terminal DIV;
 
-// Non Terminals
-non terminal program;
-non terminal sentence;
-non terminal sentence_list;
-non terminal assignment;
-non terminal expression;
-non terminal term;
-non terminal factor;
-non terminal init_block;
-non terminal identifier_declaration_list;
-non terminal identifier_declaration;
-non terminal List<String> identifier_list;
-non terminal DataType data_type;
-non terminal read_function;
-non terminal write_function;
-non terminal comparation_operator;
-non terminal logic_operator;
-non terminal simple_condition;
-non terminal multiple_condition;
-non terminal not_condition;
-non terminal condition;
-non terminal while_block;
-non terminal if_block;
-non terminal if_else_block;
-non terminal Integer long_function;
-non terminal Integer list;
-non terminal Integer list_factor;
+//Non Terminals
+non terminal Node program;
+non terminal Node sentence;
+non terminal Node sentence_list;
+non terminal Node assignment;
+non terminal Node expression;
+non terminal Node term;
+non terminal Node factor;
+non terminal Node init_block;
+non terminal Node identifier_declaration_list;
+non terminal Node identifier_declaration;
+non terminal List<String> identifier_list;   
+non terminal DataType data_type;            
+non terminal Node read_function;
+non terminal Node write_function;
+non terminal Node comparation_operator;
+non terminal Node logic_operator;
+non terminal Node simple_condition;
+non terminal Node multiple_condition;
+non terminal Node not_condition;
+non terminal Node condition;
+non terminal Node while_block;
+non terminal Node if_block;
+non terminal Node if_else_block;
+non terminal Node long_function;             
+non terminal Integer list;                     
+non terminal Integer list_factor;              
 
 
 // Start Symbol Definition
 start with program;
 
-//empty solo para que corra el test comment() en ParserTest.java
-program ::= sentence_list | /* empty */;
-                    
-sentence_list ::= sentence_list sentence;
-sentence_list ::= sentence;
 
-sentence ::= init_block;
-sentence ::= assignment;
-sentence ::= if_block;
-sentence ::= if_else_block;
-sentence ::= while_block;
-sentence ::= read_function;
-sentence ::= write_function;
-
-assignment ::= IDENTIFIER ASSIG expression {: System.out.println("Assignment"); :};
-
-
-expression ::= expression PLUS term {: System.out.println("+"); :};
-expression ::= expression SUB term {: System.out.println("-"); :};
-expression ::= term {: System.out.println("Expression = Term"); :};
-
-term ::= term MULT factor {: System.out.println("*"); :};
-term ::= term DIVIDE factor {: System.out.println("/"); :};
-term ::= factor {: System.out.println("Term = factor"); :};
-
-//MOD/DIV Special theme
-term ::= term MOD factor;
-term ::= term DIV factor;
-
-factor ::= IDENTIFIER:id  {: 
-    System.out.println("Id: " + id); 
-    /*if( !SymbolTableManager.existsInTable(id) ){
-        throw new UnknownIdentifierException("La variable: " + id + " no fue declarada");
-    }*/
+program ::= sentence_list:list {:
+    Node program = new Node(NodeType.PROGRAM);
+    program.addChild(list);
+    RESULT = program;
 :};
 
-factor ::= INTEGER_CONSTANT:constant {: 
+//empty solo para que corra el test comment() en ParserTest.java
+program ::= /* empty */ {:
+    RESULT = new Node(NodeType.PROGRAM);
+:};
+
+sentence_list ::= sentence_list:list sentence:s {:
+    list.addChild(s);
+    RESULT = list;
+:};
+
+sentence_list ::= sentence:s {:
+    Node block = new Node(NodeType.BLOCK);
+    block.addChild(s);
+    RESULT = block;
+:};
+
+sentence ::= init_block:n    {: RESULT = n; :};
+sentence ::= assignment:n    {: RESULT = n; :};
+sentence ::= if_block:n      {: RESULT = n; :};
+sentence ::= if_else_block:n {: RESULT = n; :};
+sentence ::= while_block:n   {: RESULT = n; :};
+sentence ::= read_function:n {: RESULT = n; :};
+sentence ::= write_function:n{: RESULT = n; :};
+
+assignment ::= IDENTIFIER:id ASSIG expression:expr {:
+  
+    if (!SymbolTableManager.isDeclared(id)) {
+        throw new UndeclaredVariableException(
+            "La variable " + id + " no fue declarada. " +
+            "Linea: " + idleft + ", Columna: " + idright
+        );
+    }
+
+    DataType idType   = SymbolTableManager.getSymbol(id).getDataType();
+    DataType exprType = expr.getDataType();
+
+    if (idType == DataType.STRING && exprType != DataType.STRING) {
+        throw new IncompatibleTypesException(
+            "No se puede asignar un no-STRING a un STRING: " + id +
+            ". Linea: " + idleft + ", Columna: " + idright
+        );
+    }
+    
+    if (idType == DataType.INT && exprType == DataType.FLOAT) {
+        throw new IncompatibleTypesException(
+            "No se puede asignar un FLOAT a un INT: " + id +
+            ". Linea: " + idleft + ", Columna: " + idright
+        );
+    }
+
+    Node assignNode = new Node(NodeType.ASSIG);
+    assignNode.addChild(new Node(NodeType.ID, id));
+    assignNode.addChild(expr);
+    RESULT = assignNode;
+:};
+
+expression ::= expression:e PLUS:op term:t {:
+    System.out.println("+");
+    if (e.getDataType() == DataType.STRING || t.getDataType() == DataType.STRING) {
+        throw new IncompatibleTypesException(
+            "Tipos incompatibles: no se puede sumar un STRING. " +
+            "Linea: " + opleft + ", Columna: " + opright
+        );
+    }
+    Node node = new Node(NodeType.ADD);
+    node.setDataType(e.getDataType() == DataType.FLOAT || t.getDataType() == DataType.FLOAT 
+        ? DataType.FLOAT : DataType.INT);
+    node.addChild(e);
+    node.addChild(t);
+    RESULT = node;
+:};
+
+expression ::= expression:e SUB:op term:t {:
+    System.out.println("-");
+    if (e.getDataType() == DataType.STRING || t.getDataType() == DataType.STRING) {
+        throw new IncompatibleTypesException(
+            "Tipos incompatibles: no se puede restar un STRING. " +
+            "Linea: " + opleft + ", Columna: " + opright
+        );
+    }
+    Node node = new Node(NodeType.SUB);
+    node.setDataType(e.getDataType() == DataType.FLOAT || t.getDataType() == DataType.FLOAT 
+        ? DataType.FLOAT : DataType.INT);
+    node.addChild(e);
+    node.addChild(t);
+    RESULT = node;
+:};
+
+expression ::= term:t {: 
+    System.out.println("Expression = Term"); 
+    RESULT = t; 
+:};
+
+term ::= factor:f {: RESULT = f; :};
+
+term ::= term:t MULT:op factor:f {:
+    System.out.println("*");
+    if (t.getDataType() == DataType.STRING || f.getDataType() == DataType.STRING) {
+        throw new IncompatibleTypesException(
+            "Tipos incompatibles: no se puede multiplicar un STRING. " +
+            "Linea: " + opleft + ", Columna: " + opright
+        );
+    }
+    Node node = new Node(NodeType.MUL);
+    node.setDataType(t.getDataType() == DataType.FLOAT || f.getDataType() == DataType.FLOAT 
+        ? DataType.FLOAT : DataType.INT);
+    node.addChild(t);
+    node.addChild(f);
+    RESULT = node;
+:};
+
+term ::= term:t DIVIDE:op factor:f {:
+    if (t.getDataType() == DataType.STRING || f.getDataType() == DataType.STRING) {
+        throw new IncompatibleTypesException(
+            "Tipos incompatibles: no se puede dividir un STRING. " +
+            "Linea: " + opleft + ", Columna: " + opright
+        );
+    }
+
+    // Chequeo de división por cero para constantes
+    if (f.getType() == NodeType.CTE_INTEGER && Integer.parseInt(f.getValue()) == 0) {
+        throw new DivisionByZeroException(
+            "Error: division por cero. " +
+            "Linea: " + opleft + ", Columna: " + opright
+        );
+    }
+    if (f.getType() == NodeType.CTE_FLOAT && Float.parseFloat(f.getValue()) == 0.0) {
+        throw new DivisionByZeroException(
+            "Error: division por cero. " +
+            "Linea: " + opleft + ", Columna: " + opright
+        );
+    }
+
+    Node node = new Node(NodeType.DIVIDE);
+    node.setDataType(t.getDataType() == DataType.FLOAT || f.getDataType() == DataType.FLOAT
+        ? DataType.FLOAT : DataType.INT);
+    node.addChild(t);
+    node.addChild(f);
+    RESULT = node;
+:};
+
+term ::= term:t MOD:op factor:f {:
+    if (t.getDataType() == DataType.STRING || f.getDataType() == DataType.STRING) {
+        throw new IncompatibleTypesException(
+            "Tipos incompatibles: no se puede aplicar MOD a un STRING. " +
+            "Linea: " + opleft + ", Columna: " + opright
+        );
+    }
+
+    // Chequeo de división por cero para constantes
+    if (f.getType() == NodeType.CTE_INTEGER && Integer.parseInt(f.getValue()) == 0) {
+        throw new DivisionByZeroException(
+            "Error: division por cero. " +
+            "Linea: " + opleft + ", Columna: " + opright
+        );
+    }
+    if (f.getType() == NodeType.CTE_FLOAT && Float.parseFloat(f.getValue()) == 0.0) {
+        throw new DivisionByZeroException(
+            "Error: division por cero. " +
+            "Linea: " + opleft + ", Columna: " + opright
+        );
+    }
+
+    Node node = new Node(NodeType.MOD);
+    node.setDataType(t.getDataType() == DataType.FLOAT || f.getDataType() == DataType.FLOAT
+        ? DataType.FLOAT : DataType.INT);
+    node.addChild(t);
+    node.addChild(f);
+    RESULT = node;
+:};
+
+term ::= term:t DIV:op factor:f {:
+    if (t.getDataType() == DataType.STRING || f.getDataType() == DataType.STRING) {
+        throw new IncompatibleTypesException(
+            "Tipos incompatibles: no se puede aplicar DIV a un STRING. " +
+            "Linea: " + opleft + ", Columna: " + opright
+        );
+    }
+
+    // Chequeo de división por cero para constantes
+    if (f.getType() == NodeType.CTE_INTEGER && Integer.parseInt(f.getValue()) == 0) {
+        throw new DivisionByZeroException(
+            "Error: division por cero. " +
+            "Linea: " + opleft + ", Columna: " + opright
+        );
+    }
+    if (f.getType() == NodeType.CTE_FLOAT && Float.parseFloat(f.getValue()) == 0.0) {
+        throw new DivisionByZeroException(
+            "Error: division por cero. " +
+            "Linea: " + opleft + ", Columna: " + opright
+        );
+    }
+
+    Node node = new Node(NodeType.DIV);
+    node.setDataType(DataType.INT);
+    node.addChild(t);
+    node.addChild(f);
+    RESULT = node;
+:};
+
+
+factor ::= IDENTIFIER:id {:
+    if (!SymbolTableManager.isDeclared(id)) {
+        throw new UndeclaredVariableException(
+            "La variable " + id + " no fue declarada. " +
+            "Linea: " + idleft + ", Columna: " + idright
+        );
+    }
+    DataType type = SymbolTableManager.getSymbol(id).getDataType();
+    RESULT = new Node(NodeType.ID, id, type);
+:};
+
+factor ::= CTE_INT:constant {: 
 
     /*
     * Validación de overflow en constantes enteras (short).
@@ -130,47 +315,77 @@ factor ::= INTEGER_CONSTANT:constant {:
     */
 
     if( Math.abs(Short.MIN_VALUE) == constant ){
-        throw new InvalidNumberException("El numero: "+ Math.abs(Short.MIN_VALUE) + ", produce un overflow en numeros enteros de 2 bytes.");
+        throw new InvalidNumberException(
+            "El numero: " + Math.abs(Short.MIN_VALUE) + ", produce un overflow en numeros enteros de 2 bytes. " +
+            "Linea: " + constantleft + ", Columna: " + constantright
+        );
     }
-        
-    
-    System.out.println("Constant: " + constant );
 
-    SymbolTableManager.insertConstantInTable(constant, DataType.INTEGER);
+    System.out.println("Constant Int: " + constant);
+    SymbolTableManager.addConstant(constant, DataType.INT);
+    RESULT = new Node(NodeType.CTE_INTEGER, String.valueOf(constant), DataType.INT);
 :};
 
-
-factor ::= FLOAT_CONSTANT:constant {: 
-    System.out.println("Constant: " + constant ); 
-    SymbolTableManager.insertConstantInTable(constant, DataType.FLOAT);
+factor ::= CTE_FLOAT:constant {:
+    System.out.println("Constant Float: " + constant);
+    SymbolTableManager.addConstant(constant, DataType.FLOAT);
+    RESULT = new Node(NodeType.CTE_FLOAT, String.valueOf(constant), DataType.FLOAT);
 :};
 
-
-factor ::= STRING_CONSTANT:constant {:
-    System.out.println("Constant: " + constant );
-    SymbolTableManager.insertConstantInTable(constant, DataType.STRING);
+factor ::= CTE_STRING:constant {:
+    System.out.println("Constant String: " + constant);
+    SymbolTableManager.addConstant(constant, DataType.STRING);
+    RESULT = new Node(NodeType.CTE_STRING, constant, DataType.STRING);
 :};
-
  
 factor ::= long_function:lf {:
-    //RESULT = lf;
+    RESULT = lf;
 :};
 
-factor ::= OPEN_PARENTHESIS expression CLOSE_PARENTHESIS {: System.out.println("Factor = (Expression)"); :};
-factor ::= SUB factor;
+factor ::= OPEN_PARENTHESIS expression:e CLOSE_PARENTHESIS {: 
+    System.out.println("Factor = (Expression)"); 
+    RESULT = e;
+:};
+
+factor ::= SUB factor:f {: 
+    Node node = new Node(NodeType.NEGATE);
+    node.setDataType(f.getDataType());
+    node.addChild(f);
+    RESULT = node;
+:};
 
 
 /*--------------------Init Block---------------------------------------*/
 
-init_block ::= INIT OPEN_BRACE identifier_declaration_list CLOSE_BRACE;
+init_block ::= INIT OPEN_BRACE identifier_declaration_list:list CLOSE_BRACE {:
+    Node initNode = new Node(NodeType.INIT);
+    initNode.addChild(list);
+    RESULT = initNode;
 
-identifier_declaration_list ::= identifier_declaration_list identifier_declaration;
-identifier_declaration_list ::= identifier_declaration;
+:};
+
+identifier_declaration_list ::= identifier_declaration_list:list identifier_declaration:declNode {:
+    list.addChild(declNode);
+    RESULT = list;
+:};
+
+identifier_declaration_list ::= identifier_declaration:declNode {:
+    Node listNode = new Node(NodeType.DECLARATION_LIST);
+    listNode.addChild(declNode);
+    RESULT = listNode;
+:};
 
 identifier_declaration ::= identifier_list:list_ids COLON data_type:type {:
     for(String id : list_ids){
-        SymbolTableManager.insertIdentifierInTable(id, type);
+        SymbolTableManager.addIdentifier(id, type);
     }
+
+    Node declarationNode = new Node(NodeType.VAR_DECLARATION);
+    for(String id : list_ids){
+        Node idNode = new Node(NodeType.ID, id);
+        declarationNode.addChild(idNode);
+    }
+    RESULT = declarationNode;
 :};
 
 identifier_list ::= identifier_list:list_ids COMMA IDENTIFIER:id {:
@@ -182,55 +397,123 @@ identifier_list ::= IDENTIFIER:id {:
     RESULT.add(id);
 :};
 data_type ::= FLOAT {: RESULT = DataType.FLOAT; :}; 
-data_type ::= INT {: RESULT = DataType.INTEGER; :};
+data_type ::= INT {: RESULT = DataType.INT; :};
 data_type ::= STRING {: RESULT = DataType.STRING; :};
 
 
 /*--------------------Read--------------------------------------------*/
 
-read_function ::= READ OPEN_PARENTHESIS IDENTIFIER CLOSE_PARENTHESIS;
+read_function ::= READ OPEN_PARENTHESIS IDENTIFIER:id CLOSE_PARENTHESIS {:
+    if (!SymbolTableManager.isDeclared(id)) {
+        throw new UndeclaredVariableException(
+            "La variable " + id + " no fue declarada. " +
+            "Linea: " + idleft + ", Columna: " + idright
+        );
+    }
+    Node readNode = new Node(NodeType.READ);
+    readNode.addChild(new Node(NodeType.ID, id));
+    RESULT = readNode;
+:};
 
 /*--------------------Write--------------------------------------------*/
 
-write_function ::= WRITE OPEN_PARENTHESIS expression CLOSE_PARENTHESIS;
+write_function ::= WRITE OPEN_PARENTHESIS expression:expr CLOSE_PARENTHESIS {:
+    Node writeNode = new Node(NodeType.WRITE);
+    writeNode.addChild(expr);
+    RESULT = writeNode;
+:};
 
 /*--------------------Conditions--------------------------------------------*/
 
-comparation_operator ::= EQUAL;
-comparation_operator ::= NOT_EQUAL;
-comparation_operator ::= GREATER;
-comparation_operator ::= GREATER_OR_EQUAL;
-comparation_operator ::= LESS;
-comparation_operator ::= LESS_OR_EQUAL;
 
-logic_operator ::= OR;
-logic_operator ::= AND;
+comparation_operator ::= EQUAL            {: RESULT = new Node(NodeType.EQ);  :};
+comparation_operator ::= NOT_EQUAL        {: RESULT = new Node(NodeType.NEQ); :};
+comparation_operator ::= GREATER          {: RESULT = new Node(NodeType.GT);  :};
+comparation_operator ::= GREATER_OR_EQUAL {: RESULT = new Node(NodeType.GTE); :};
+comparation_operator ::= LESS             {: RESULT = new Node(NodeType.LT);  :};
+comparation_operator ::= LESS_OR_EQUAL    {: RESULT = new Node(NodeType.LTE); :};
 
-condition ::= simple_condition;
-condition ::= multiple_condition;
-condition ::= not_condition;
+logic_operator ::= OR  {: RESULT = new Node(NodeType.OR);  :};
+logic_operator ::= AND {: RESULT = new Node(NodeType.AND); :};
 
-simple_condition ::= expression comparation_operator expression;
-multiple_condition ::= simple_condition logic_operator simple_condition;
-not_condition ::= NOT simple_condition;
+condition ::= simple_condition:s   {: RESULT = s; :};
+condition ::= multiple_condition:m {: RESULT = m; :};
+condition ::= not_condition:n      {: RESULT = n; :};
+
+simple_condition ::= expression:e1 comparation_operator:op expression:e2 {:
+    if (e1.getDataType() == DataType.STRING && e2.getDataType() != DataType.STRING) {
+        throw new IncompatibleTypesException(
+            "No se puede comparar un STRING con un no-STRING. " +
+            "Linea: " + opleft + ", Columna: " + opright
+        );
+    }
+    if (e1.getDataType() != DataType.STRING && e2.getDataType() == DataType.STRING) {
+        throw new IncompatibleTypesException(
+            "No se puede comparar un no-STRING con un STRING. " +
+            "Linea: " + opleft + ", Columna: " + opright
+        );
+    }
+
+    System.out.println("Condicion: " + e1.getValue() + " " + op.getType() + " " + e2.getValue());
+
+    op.addChild(e1);
+    op.addChild(e2);
+    op.setDataType(DataType.INT);
+    RESULT = op;
+:};
+
+multiple_condition ::= simple_condition:s1 logic_operator:op simple_condition:s2 {:
+    System.out.println("Condicion multiple: " + s1.getType() + " " + op.getType() + " " + s2.getType());
+    op.addChild(s1);
+    op.addChild(s2);
+    op.setDataType(DataType.INT);
+    RESULT = op;
+:};
+
+not_condition ::= NOT simple_condition:s {:
+    System.out.println("NOT: " + s.getChild(0).getValue() + " " + s.getType() + " " + s.getChild(1).getValue());
+    Node notNode = new Node(NodeType.NOT);
+    notNode.addChild(s);
+    notNode.setDataType(DataType.INT);
+    RESULT = notNode;
+:};
 
 
 /*--------------------While--------------------------------------------*/
 
-while_block ::= WHILE OPEN_PARENTHESIS condition CLOSE_PARENTHESIS OPEN_BRACE sentence_list CLOSE_BRACE;
+while_block ::= WHILE OPEN_PARENTHESIS condition:c CLOSE_PARENTHESIS OPEN_BRACE sentence_list:body CLOSE_BRACE {:
+    Node whileNode = new Node(NodeType.WHILE);
+    whileNode.addChild(c);
+    whileNode.addChild(body);
+    RESULT = whileNode;
+:};
 
 /*--------------------If--------------------------------------------*/
 
-if_block ::= IF OPEN_PARENTHESIS condition CLOSE_PARENTHESIS OPEN_BRACE sentence_list CLOSE_BRACE;
-if_else_block ::= IF OPEN_PARENTHESIS condition CLOSE_PARENTHESIS OPEN_BRACE sentence_list CLOSE_BRACE ELSE OPEN_BRACE sentence_list CLOSE_BRACE;
+if_block ::= IF OPEN_PARENTHESIS condition:c CLOSE_PARENTHESIS OPEN_BRACE sentence_list:body CLOSE_BRACE {:
+    Node ifNode = new Node(NodeType.IF);
+    ifNode.addChild(c);
+    ifNode.addChild(body);
+    RESULT = ifNode;
+:};
+
+if_else_block ::= IF OPEN_PARENTHESIS condition:c CLOSE_PARENTHESIS OPEN_BRACE sentence_list:body CLOSE_BRACE ELSE OPEN_BRACE sentence_list:elseBody CLOSE_BRACE {:
+    Node ifElseNode = new Node(NodeType.IF_ELSE);
+    ifElseNode.addChild(c);
+    ifElseNode.addChild(body);
+    ifElseNode.addChild(elseBody);
+    RESULT = ifElseNode;
+:};
 
 /*--------------------Long Function--------------------------------------------*/
 
-long_function ::= LONG OPEN_PARENTHESIS OPEN_BRACKET list:l CLOSE_BRACKET CLOSE_PARENTHESIS {: RESULT = l; :};
+long_function ::= LONG OPEN_PARENTHESIS OPEN_BRACKET list:l CLOSE_BRACKET CLOSE_PARENTHESIS {:
+    RESULT = new Node(NodeType.CTE_INTEGER, String.valueOf(l));
+:};
+
 list ::= list_factor {: RESULT = 1; :};
 list ::= list:l COMMA list_factor {: RESULT = l + 1; :};
+
 list_factor ::= expression;
 
 
-
-/*--------------------Long Function--------------------------------------------*/

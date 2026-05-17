@@ -149,15 +149,15 @@ StringConstant = \"[\x20-\x7E]*\" | “[\x20-\x7E]*”
                                                 valor = Integer.parseInt(yytext());
                                               }
                                               catch( NumberFormatException e){
-                                                throw new InvalidNumberException("El numero ingresado: " + yytext() + ", excede el rango permitido para un entero de 2 bytes.");
+                                                throw new NumberOverflowException("El numero ingresado: " + yytext() + ", excede el rango permitido para un entero de 2 bytes.");
                                               }
 
                                               //Dejo pasar el numero 32768 ya que puede parsearse como negativo.
                                               if (valor > Short.MAX_VALUE + 1) {
-                                                throw new InvalidFormatException(
+                                                throw new NumberOverflowException(
                                                     "El numero ingresado: " + yytext() + " excede el rango permitido para un entero de 2 bytes.");
                                               }
-                                              return symbol(ParserSym.INTEGER_CONSTANT, valor);
+                                              return symbol(ParserSym.CTE_INT, valor);
                                             }
 
 
@@ -166,26 +166,26 @@ StringConstant = \"[\x20-\x7E]*\" | “[\x20-\x7E]*”
                                               try{
                                                 valor = Float.parseFloat(yytext());
                                                 if (Float.isInfinite(valor) || Float.isNaN(valor)) {
-                                                  throw new InvalidNumberException(
+                                                  throw new NumberOverflowException(
                                                     "El numero ingresado: " + yytext() + ", excede el rango permitido para float."
                                                   );
                                                 }
                                               }
                                               catch( NumberFormatException e){
-                                                throw new InvalidNumberException("El numero ingresado: " + yytext() + ", excede el rango permitido para float.");
+                                                throw new NumberOverflowException("El numero ingresado: " + yytext() + ", excede el rango permitido para float.");
                                               }
-                                              return symbol(ParserSym.FLOAT_CONSTANT, valor); 
+                                              return symbol(ParserSym.CTE_FLOAT, valor); 
                                             }
 
-  {StringConstant}                          { 
+  {StringConstant}                          {
                                               String lexema = yytext().substring(1, yytext().length() - 1);
-
-                                              if( yytext().length() > MAX_STRING_CONSTANT_LENGTH ){
-                                                throw new InvalidStringException("El string: "+yytext()+" excede la longitud permitida.");
+                                              
+                                              if( lexema.length() > MAX_STRING_CONSTANT_LENGTH ){
+                                                  throw new StringTooLongException("El string: " + lexema + " excede la longitud permitida de " + MAX_STRING_CONSTANT_LENGTH + " caracteres.");
                                               }
-                                              return symbol(ParserSym.STRING_CONSTANT, lexema); 
+                                              
+                                              return symbol(ParserSym.CTE_STRING, lexema);
                                             }
-
 
 
   /* whitespace */

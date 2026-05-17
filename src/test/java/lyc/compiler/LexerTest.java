@@ -34,13 +34,13 @@ public class LexerTest {
     scan("a:=5 #+ comentario +#");
     assertThat(nextToken()).isEqualTo(ParserSym.IDENTIFIER);
     assertThat(nextToken()).isEqualTo(ParserSym.ASSIG);
-    assertThat(nextToken()).isEqualTo(ParserSym.INTEGER_CONSTANT);
+    assertThat(nextToken()).isEqualTo(ParserSym.CTE_INT);
     assertThat(nextToken()).isEqualTo(ParserSym.EOF);
   }
 
   @Test
-  public void invalidStringConstantLength() {
-    assertThrows(InvalidStringException.class, () -> {
+  public void StringTooLong() {
+    assertThrows(StringTooLongException.class, () -> {
       scan("\"%s\"".formatted(getRandomString()));
       nextToken();
     });
@@ -56,7 +56,7 @@ public class LexerTest {
 
   @Test
   public void invalidPositiveIntegerConstantValue() {
-    assertThrows(InvalidNumberException.class, () -> {
+    assertThrows(NumberOverflowException.class, () -> {
       scan("%d".formatted(9223372036854775807L));
       nextToken();
     });
@@ -81,10 +81,10 @@ public class LexerTest {
     assertThat(nextToken()).isEqualTo(ParserSym.OPEN_PARENTHESIS);
     assertThat(nextToken()).isEqualTo(ParserSym.IDENTIFIER);
     assertThat(nextToken()).isEqualTo(ParserSym.SUB);
-    assertThat(nextToken()).isEqualTo(ParserSym.INTEGER_CONSTANT);
+    assertThat(nextToken()).isEqualTo(ParserSym.CTE_INT);
     assertThat(nextToken()).isEqualTo(ParserSym.CLOSE_PARENTHESIS);
     assertThat(nextToken()).isEqualTo(ParserSym.DIVIDE);
-    assertThat(nextToken()).isEqualTo(ParserSym.INTEGER_CONSTANT);
+    assertThat(nextToken()).isEqualTo(ParserSym.CTE_INT);
     assertThat(nextToken()).isEqualTo(ParserSym.EOF);
   }
 
@@ -99,15 +99,15 @@ public class LexerTest {
   @Test
   public void validFloatConstant() throws Exception {
     scan("3.14 .5 2.");
-    assertThat(nextToken()).isEqualTo(ParserSym.FLOAT_CONSTANT);
-    assertThat(nextToken()).isEqualTo(ParserSym.FLOAT_CONSTANT);
-    assertThat(nextToken()).isEqualTo(ParserSym.FLOAT_CONSTANT);
+    assertThat(nextToken()).isEqualTo(ParserSym.CTE_FLOAT);
+    assertThat(nextToken()).isEqualTo(ParserSym.CTE_FLOAT);
+    assertThat(nextToken()).isEqualTo(ParserSym.CTE_FLOAT);
     assertThat(nextToken()).isEqualTo(ParserSym.EOF);
   }
 
   @Test
   public void invalidFloatConstantValue() {
-    assertThrows(InvalidNumberException.class, () -> {
+    assertThrows(NumberOverflowException.class, () -> {
       scan("999999999999999999999999999999999999999999999999999.0");
       nextToken();
     });
@@ -119,7 +119,7 @@ public class LexerTest {
     assertThat(nextToken()).isEqualTo(ParserSym.IDENTIFIER);
     assertThat(nextToken()).isEqualTo(ParserSym.ASSIG);
     assertThat(nextToken()).isEqualTo(ParserSym.SUB);
-    assertThat(nextToken()).isEqualTo(ParserSym.INTEGER_CONSTANT);
+    assertThat(nextToken()).isEqualTo(ParserSym.CTE_INT);
     assertThat(nextToken()).isEqualTo(ParserSym.EOF);
   }
 
@@ -131,7 +131,7 @@ public class LexerTest {
     assertThat(nextToken()).isEqualTo(ParserSym.IDENTIFIER);
     assertThat(nextToken()).isEqualTo(ParserSym.ASSIG);
     assertThat(nextToken()).isEqualTo(ParserSym.SUB);
-    assertThat(nextToken()).isEqualTo(ParserSym.FLOAT_CONSTANT);
+    assertThat(nextToken()).isEqualTo(ParserSym.CTE_FLOAT);
     assertThat(nextToken()).isEqualTo(ParserSym.EOF);
   }
 
@@ -141,7 +141,7 @@ public class LexerTest {
     scan("msg:=\"hola\"");
     assertThat(nextToken()).isEqualTo(ParserSym.IDENTIFIER);
     assertThat(nextToken()).isEqualTo(ParserSym.ASSIG);
-    assertThat(nextToken()).isEqualTo(ParserSym.STRING_CONSTANT);
+    assertThat(nextToken()).isEqualTo(ParserSym.CTE_STRING);
     assertThat(nextToken()).isEqualTo(ParserSym.EOF);
   }
 

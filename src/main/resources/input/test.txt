@@ -14,15 +14,15 @@
 init {
     a, a1, b1 : Float
     variable1, c, x, y, z: Int
-    p1, p2, p3, b, var1 : String
+    p1, p2, p3, b, var1, base : String
 }
 
 #+-----------------Arithmetic----------------+#
 
-x := 27 - a1
-x := b1 + 500
-x := 34 * 3
-x := variable1 / b1 
+a := 27 - a1
+a := b1 + 500
+c := 34 * 3
+a := variable1 / b1 
 
 
 #+-----------------Assignment----------------+#
@@ -37,10 +37,10 @@ b := "asldk  fh sjf"
 #+-----------------And----------------+#
 
 a := 1
-b := 1
+b1 := 5
 c := 2
 
-if (a > b AND c > b)
+if (a > b1 AND c > b1)
 {
     write("a es mas grande que b y c es mas grande que b")
 }
@@ -48,7 +48,7 @@ if (a > b AND c > b)
 
 #+-----------------Or----------------+#
 
-if (a > b OR c > b)
+if (a > b1 OR c > b1)
 {
     write("a es mas grande que b o c es mas grande que b")
 }
@@ -56,7 +56,7 @@ if (a > b OR c > b)
 
 #+-----------------Not----------------+#
 
-if (NOT a > b)
+if (NOT a > b1)
 {
     write("a no es mas grande que b")
 }
@@ -72,7 +72,7 @@ write(var1)  #+ var1 es una variable numérica definida previamente +#
 
 #+-----------------If/Else----------------+#
 
-if (a > b)
+if (a > b1)
 {
     write("a es mas grande que b")
 }
@@ -85,7 +85,7 @@ else
 #+-----------------While----------------+#
 
 
-while (a > b)
+while (a > b1)
 {
     write("a es mas grande que b")
     a := a + 1
