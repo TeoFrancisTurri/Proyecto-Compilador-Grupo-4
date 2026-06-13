@@ -12,9 +12,11 @@
 #+-----------------Init----------------+#
 
 init {
-    a, a1, b1 : Float
+    a, a1, b1, d : Float
     variable1, c, x, y, z: Int
     p1, p2, p3, b, var1 : String
+    base : Int
+    resultado : Int
 }
 
 #+-----------------Arithmetic----------------+#
@@ -23,7 +25,6 @@ x := 27 - a1
 x := b1 + 500
 x := 34 * 3
 x := variable1 / b1 
-
 
 #+-----------------Assignment----------------+#
 
@@ -37,57 +38,57 @@ b := "asldk  fh sjf"
 #+-----------------And----------------+#
 
 a := 1
-b := 1
+d := 1
 c := 2
 
-if (a > b AND c > b)
+if (a > d AND c > d)
 {
-    write("a es mas grande que b y c es mas grande que b")
+    write("a es mas grande que d y c es mas grande que d")
 }
 
 
 #+-----------------Or----------------+#
 
-if (a > b OR c > b)
+if (a > d OR c > d)
 {
-    write("a es mas grande que b o c es mas grande que b")
+    write("a es mas grande que d o c es mas grande que d")
 }
 
 
 #+-----------------Not----------------+#
 
-if (NOT a > b)
+if (NOT a > d)
 {
-    write("a no es mas grande que b")
+    write("a no es mas grande que d")
 }
 
 #+-----------------Read----------------+#
 
-read(base) #+ base es una variable +#
+read(base)
 
 #+-----------------Write----------------+#
 
-write("ewr")  #+ “ewr” es una cte string +#
-write(var1)  #+ var1 es una variable numérica definida previamente +#
+write("ewr")
+write(var1)
 
 #+-----------------If/Else----------------+#
 
-if (a > b)
+if (a > d)
 {
-    write("a es mas grande que b")
+    write("a es mas grande que d")
 }
 else
 {
-    write("a es mas chico o igual a b")
+    write("a es mas chico o igual a d")
 }
 
 
 #+-----------------While----------------+#
 
 
-while (a > b)
+while (a > d)
 {
-    write("a es mas grande que b")
+    write("a es mas grande que d")
     a := a + 1
 }
 
@@ -99,3 +100,50 @@ if (long([1+2, 3*4, x, y+z]) > 3)
 {
     write("lista es mas grande que 3")
 }
+
+#+-----------------MOD y DIV (Temas Especiales)----------------+#
+
+resultado := 10 MOD 3
+write(resultado)
+
+resultado := 10 DIV 3
+write(resultado)
+
+resultado := (x + 1) MOD (y + 2)
+
+if (x MOD 2 == 0)
+{
+    write("x es par")
+}
+
+resultado := (10 DIV 3) + (10 MOD 3)
+
+
+#+----- Casos de error (comentados) -----+#
+
+#+ Error: variable no declarada +#
+#+ noExiste := 5 +#
+
+#+ Error: tipos incompatibles - asignar STRING a numerico +#
+#+ x := b +#
+
+#+ Error: tipos incompatibles - asignar no-STRING a STRING +#
+#+ b := 5 +#
+
+#+ Error: tipos incompatibles - operar con STRING +#
+#+ x := x + b +#
+
+#+ Error: division por cero +#
+#+ x := x DIV 0 +#
+
+#+ Error: MOD por cero +#
+#+ x := x MOD 0 +#
+
+#+ Error: overflow entero +#
+#+ x := 32768 +#
+
+#+ Error: string demasiado largo +#
+#+ b := "123456789012345678901234567890123456789012345678901" +#
+
+#+ Error: identificador duplicado +#
+#+ init { x : Int  x : Float } +#

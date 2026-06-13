@@ -134,10 +134,10 @@ assignment ::= IDENTIFIER:id ASSIG expression:expr {:
             ". Linea: " + idleft + ", Columna: " + idright
         );
     }
-    
-    if (idType == DataType.INT && exprType == DataType.FLOAT) {
+
+    if (idType != DataType.STRING && exprType == DataType.STRING) {
         throw new IncompatibleTypesException(
-            "No se puede asignar un FLOAT a un INT: " + id +
+            "No se puede asignar un STRING a un tipo numerico: " + id +
             ". Linea: " + idleft + ", Columna: " + idright
         );
     }
@@ -508,7 +508,7 @@ if_else_block ::= IF OPEN_PARENTHESIS condition:c CLOSE_PARENTHESIS OPEN_BRACE s
 /*--------------------Long Function--------------------------------------------*/
 
 long_function ::= LONG OPEN_PARENTHESIS OPEN_BRACKET list:l CLOSE_BRACKET CLOSE_PARENTHESIS {:
-    RESULT = new Node(NodeType.CTE_INTEGER, String.valueOf(l));
+    RESULT = new Node(NodeType.CTE_INTEGER, String.valueOf(l), DataType.INT);
 :};
 
 list ::= list_factor {: RESULT = 1; :};

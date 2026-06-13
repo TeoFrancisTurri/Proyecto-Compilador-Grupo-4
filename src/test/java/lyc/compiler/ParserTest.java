@@ -242,14 +242,38 @@ public class ParserTest {
     }
 
     @Test
-    void arithmeticAssignFloatToInt() {
+    void arithmeticAssignFloatToInt() throws Exception {
+        // INT and FLOAT are compatible numeric types - this should succeed
+        compilationSuccessful("""
+            init {
+                x : Int
+                a : Float
+            }
+            x := a + 1.0
+        """);
+    }
+
+    @Test
+    void assignStringToNumeric() {
         assertThrows(IncompatibleTypesException.class, () -> {
             compilationSuccessful("""
                 init {
                     x : Int
-                    a : Float
+                    b : String
                 }
-                x := a + 1.0
+                x := b
+            """);
+        });
+    }
+
+    @Test
+    void assignNumericToString() {
+        assertThrows(IncompatibleTypesException.class, () -> {
+            compilationSuccessful("""
+                init {
+                    b : String
+                }
+                b := 5
             """);
         });
     }
