@@ -243,7 +243,6 @@ public class ParserTest {
 
     @Test
     void arithmeticAssignFloatToInt() throws Exception {
-        // INT and FLOAT are compatible numeric types - this should succeed
         compilationSuccessful("""
             init {
                 x : Int

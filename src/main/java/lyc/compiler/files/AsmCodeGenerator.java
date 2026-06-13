@@ -31,13 +31,10 @@ public class AsmCodeGenerator implements FileGenerator {
         declaredTemps.clear();
         declaredStringConstants.clear();
 
-        // Generate code section first (to discover temps needed)
         generateNode(ast);
 
-        // Build the full ASM file
         StringBuilder asm = new StringBuilder();
 
-        // Includes
         asm.append("include macros2.asm\r\n");
         asm.append("include number.asm\r\n");
         asm.append("\r\n");
@@ -48,31 +45,28 @@ public class AsmCodeGenerator implements FileGenerator {
         asm.append("MAXTEXTSIZE equ 50\r\n");
         asm.append("\r\n");
 
-        // DATA section
+        // Sección de datos
         asm.append(".DATA\r\n");
         asm.append("\r\n");
 
-        // Emit variables and constants from symbol table
         emitDataDeclarations(asm);
 
-        // Emit temporaries
         for (String temp : declaredTemps) {
             asm.append("    ").append(temp).append("    dd ?\r\n");
         }
 
-        // Emit string constants collected during code generation
         for (String strDecl : declaredStringConstants) {
             asm.append("    ").append(strDecl).append("\r\n");
         }
 
-        // Aux variables
+        // Variables auxiliares
         asm.append("    _aux        db MAXTEXTSIZE dup (?),'$'\r\n");
         asm.append("    _msgPRESIONE    db 0DH,0AH,\"Presione una tecla para continuar...\",'$'\r\n");
         asm.append("    _NEWLINE        db 0DH,0AH,'$'\r\n");
         asm.append("    _msgDIV0        db 0DH,0AH,\"Error: division por cero\",'$'\r\n");
         asm.append("\r\n");
 
-        // CODE section
+        // Sección de código
         asm.append(".CODE\r\n");
         asm.append("\r\n");
         asm.append("START:\r\n");
@@ -80,10 +74,8 @@ public class AsmCodeGenerator implements FileGenerator {
         asm.append("    mov DS,AX\r\n");
         asm.append("    mov es,ax\r\n");
 
-        // Append generated code
         asm.append(codeSection);
 
-        // End: press key + exit
         asm.append("    mov dx,OFFSET _NEWLINE\r\n");
         asm.append("    mov ah,09\r\n");
         asm.append("    int 21h\r\n");
@@ -99,7 +91,7 @@ public class AsmCodeGenerator implements FileGenerator {
         fileWriter.write(asm.toString());
     }
 
-    // ── Data declarations ─────────────────────────────────────────
+    // ── Declaraciones de datos ────────────────────────────────────
 
     private void emitDataDeclarations(StringBuilder asm) {
         Map<String, SymbolEntry> symbols = SymbolTableManager.getSymbols();
@@ -115,7 +107,6 @@ public class AsmCodeGenerator implements FileGenerator {
                         asm.append("    ").append(asmName)
                            .append("    db MAXTEXTSIZE dup (?),'$'\r\n");
                     } else {
-                        // INT and FLOAT both stored as dd (32 bits, used with FPU)
                         asm.append("    ").append(asmName)
                            .append("    dd ?\r\n");
                     }
@@ -149,16 +140,16 @@ public class AsmCodeGenerator implements FileGenerator {
         asm.append("\r\n");
     }
 
-    // ── AST traversal (code generation) ───────────────────────────
+    // ── Recorrido del AST (generación de código) ───────────────────
 
     private void generateNode(Node node) {
         if (node == null) return;
         switch (node.getType()) {
             case PROGRAM          -> generateProgram(node);
             case BLOCK            -> generateBlock(node);
-            case INIT             -> {} // declarations handled in data section
-            case DECLARATION_LIST -> {} // handled above
-            case VAR_DECLARATION  -> {} // handled above
+            case INIT             -> {}
+            case DECLARATION_LIST -> {}
+            case VAR_DECLARATION  -> {}
             case ASSIG            -> generateAssig(node);
             case IF               -> generateIf(node);
             case IF_ELSE          -> generateIfElse(node);
@@ -181,7 +172,7 @@ public class AsmCodeGenerator implements FileGenerator {
         }
     }
 
-    // ── Assignment ────────────────────────────────────────────────
+    // ── Asignación ────────────────────────────────────────────────
 
     private void generateAssig(Node node) {
         String id = node.getChild(0).getValue();
@@ -191,19 +182,17 @@ public class AsmCodeGenerator implements FileGenerator {
         DataType idType = SymbolTableManager.getSymbol(id).getDataType();
 
         if (idType == DataType.STRING) {
-            // String assignment: use STRCPY macro
             String exprName = generateStringExpr(expr);
             emit("    lea SI, " + exprName);
             emit("    lea DI, " + asmId);
             emit("    STRCPY");
         } else {
-            // Numeric assignment: evaluate expression to FPU ST(0), then store
             generateNumericExpr(expr);
             emit("    fstp " + asmId);
         }
     }
 
-    // ── Numeric expression → leaves result in ST(0) ───────────────
+    // ── Expresión numérica → deja el resultado en ST(0) ───────────
 
     private void generateNumericExpr(Node node) {
         if (node == null) return;
@@ -239,14 +228,11 @@ public class AsmCodeGenerator implements FileGenerator {
             case DIVIDE -> {
                 generateNumericExpr(node.getChild(0));
                 generateNumericExpr(node.getChild(1));
-                // Runtime division by zero check
                 String lblOk = newLabel();
-                String lblError = newLabel();
                 emit("    ftst");
                 emit("    fstsw ax");
                 emit("    sahf");
                 emit("    JNE " + lblOk);
-                // divisor is zero
                 emit("    displayString _msgDIV0");
                 emit("    newLine 1");
                 emit("    mov ax, 4C00h");
@@ -255,14 +241,12 @@ public class AsmCodeGenerator implements FileGenerator {
                 emit("    fdiv");
             }
             case MOD -> {
-                // MOD: a MOD b = a - (trunc(a/b) * b)  or use fprem
-                generateNumericExpr(node.getChild(1)); // divisor in ST(0)
-                generateNumericExpr(node.getChild(0)); // dividend in ST(0), divisor in ST(1)
-                // Runtime division by zero check on divisor (now ST(1))
+                generateNumericExpr(node.getChild(1));
+                generateNumericExpr(node.getChild(0));
                 String lblModOk = newLabel();
                 String tempMod = newTemp();
-                emit("    fstp " + tempMod);  // save dividend
-                emit("    ftst");              // test divisor (now ST(0))
+                emit("    fstp " + tempMod);
+                emit("    ftst");
                 emit("    fstsw ax");
                 emit("    sahf");
                 emit("    JNE " + lblModOk);
@@ -271,22 +255,20 @@ public class AsmCodeGenerator implements FileGenerator {
                 emit("    mov ax, 4C00h");
                 emit("    int 21h");
                 emit(lblModOk + ":");
-                emit("    fld " + tempMod);   // reload dividend to ST(0), divisor in ST(1)
+                emit("    fld " + tempMod);
                 String lblRepeat = newLabel();
                 emit(lblRepeat + ":");
                 emit("    fprem");
                 emit("    fstsw ax");
                 emit("    sahf");
-                emit("    JP " + lblRepeat);    // repeat if C2 is set (partial remainder)
+                emit("    JP " + lblRepeat);
                 emit("    fxch");
                 emit("    ffree st(0)");
                 emit("    fincstp");
             }
             case DIV -> {
-                // Integer division: trunc(a / b)
                 generateNumericExpr(node.getChild(0));
                 generateNumericExpr(node.getChild(1));
-                // Runtime division by zero check
                 String lblDivOk = newLabel();
                 emit("    ftst");
                 emit("    fstsw ax");
@@ -298,12 +280,11 @@ public class AsmCodeGenerator implements FileGenerator {
                 emit("    int 21h");
                 emit(lblDivOk + ":");
                 emit("    fdiv");
-                // Truncate: save rounding mode, set to truncate, round, restore
                 String tempCW1 = newTemp();
                 String tempCW2 = newTemp();
                 emit("    fstcw word ptr " + tempCW1);
                 emit("    mov ax, word ptr " + tempCW1);
-                emit("    or ax, 0C00h");           // set RC to truncate (11)
+                emit("    or ax, 0C00h");
                 emit("    mov word ptr " + tempCW2 + ", ax");
                 emit("    fldcw word ptr " + tempCW2);
                 emit("    frndint");
@@ -314,12 +295,11 @@ public class AsmCodeGenerator implements FileGenerator {
                 emit("    fchs");
             }
             default -> {
-                // If it's a complex expression stored in a temp, load it
             }
         }
     }
 
-    // ── String expression → returns ASM label name ────────────────
+    // ── Expresión de texto → devuelve el nombre de la etiqueta ASM ──
 
     private String generateStringExpr(Node node) {
         if (node.getType() == NodeType.ID) {
@@ -330,31 +310,24 @@ public class AsmCodeGenerator implements FileGenerator {
         return "_aux";
     }
 
-    // ── Conditions ────────────────────────────────────────────────
+    // ── Condiciones ────────────────────────────────────────────────
 
-    /**
-     * Generates a condition and jumps to labelFalse if the condition is FALSE.
-     */
     private void generateCondition(Node node, String labelFalse) {
         switch (node.getType()) {
             case GT, LT, GTE, LTE, EQ, NEQ -> {
                 generateComparison(node, labelFalse);
             }
             case AND -> {
-                // Short-circuit: if first is false, skip
                 generateCondition(node.getChild(0), labelFalse);
                 generateCondition(node.getChild(1), labelFalse);
             }
             case OR -> {
-                // Short-circuit: if first is true, skip to after
                 String labelTrue = newLabel();
                 generateConditionTrue(node.getChild(0), labelTrue);
                 generateCondition(node.getChild(1), labelFalse);
                 emit(labelTrue + ":");
             }
             case NOT -> {
-                // Negate: jump to labelFalse if inner condition is TRUE
-                // We need a label for "inner true" which means outer false
                 String labelInnerTrue = newLabel();
                 generateConditionTrue(node.getChild(0), labelInnerTrue);
                 emit("    JMP " + labelFalse);
@@ -364,9 +337,6 @@ public class AsmCodeGenerator implements FileGenerator {
         }
     }
 
-    /**
-     * Generates a condition and jumps to labelTrue if the condition is TRUE.
-     */
     private void generateConditionTrue(Node node, String labelTrue) {
         switch (node.getType()) {
             case GT, LT, GTE, LTE, EQ, NEQ -> {
@@ -393,13 +363,11 @@ public class AsmCodeGenerator implements FileGenerator {
         Node left = node.getChild(0);
         Node right = node.getChild(1);
 
-        // Check if it's a string comparison
         if (left.getDataType() == DataType.STRING) {
             generateStringComparison(node, left, right, labelFalse, false);
             return;
         }
 
-        // Numeric comparison using FPU
         generateNumericExpr(left);
         generateNumericExpr(right);
         emit("    fxch");
@@ -409,19 +377,13 @@ public class AsmCodeGenerator implements FileGenerator {
         emit("    fincstp");
         emit("    sahf");
 
-        // Jump to labelFalse if condition is FALSE
-        // FPU comparison: fcomp compares ST(0) with ST(1), pops ST(0)
-        // After fxch: ST(0)=right, ST(1)=left. fcomp compares ST(0) [right] with ST(1) [left]
-        // Actually we want to compare left vs right, so:
-        // We load left first, then right. After fxch: ST(0)=left, ST(1)=right.
-        // fcomp compares ST(0) [left] with ST(1) [right]
         switch (node.getType()) {
-            case GT  -> emit("    JBE " + labelFalse);  // jump if left <= right
-            case LT  -> emit("    JAE " + labelFalse);  // jump if left >= right
-            case GTE -> emit("    JB " + labelFalse);   // jump if left < right
-            case LTE -> emit("    JA " + labelFalse);   // jump if left > right
-            case EQ  -> emit("    JNE " + labelFalse);  // jump if left != right
-            case NEQ -> emit("    JE " + labelFalse);   // jump if left == right
+            case GT  -> emit("    JBE " + labelFalse);
+            case LT  -> emit("    JAE " + labelFalse);
+            case GTE -> emit("    JB " + labelFalse);
+            case LTE -> emit("    JA " + labelFalse);
+            case EQ  -> emit("    JNE " + labelFalse);
+            case NEQ -> emit("    JE " + labelFalse);
             default -> {}
         }
     }
@@ -444,7 +406,6 @@ public class AsmCodeGenerator implements FileGenerator {
         emit("    fincstp");
         emit("    sahf");
 
-        // Jump to labelTrue if condition is TRUE
         switch (node.getType()) {
             case GT  -> emit("    JA " + labelTrue);
             case LT  -> emit("    JB " + labelTrue);
@@ -465,13 +426,11 @@ public class AsmCodeGenerator implements FileGenerator {
         emit("    lea DI, " + rightName);
         emit("    STRCMP");
 
-        // STRCMP sets ZF=1 if equal, ZF=0 if not equal
-        // We only support EQ and NEQ for strings
         if (jumpOnTrue) {
             switch (node.getType()) {
                 case EQ  -> emit("    JE " + targetLabel);
                 case NEQ -> emit("    JNE " + targetLabel);
-                default -> emit("    JE " + targetLabel); // default to EQ
+                default -> emit("    JE " + targetLabel);
             }
         } else {
             switch (node.getType()) {
@@ -482,7 +441,7 @@ public class AsmCodeGenerator implements FileGenerator {
         }
     }
 
-    // ── Control flow ──────────────────────────────────────────────
+    // ── Control de flujo ───────────────────────────────────────────
 
     private void generateIf(Node node) {
         Node condition = node.getChild(0);
@@ -522,7 +481,7 @@ public class AsmCodeGenerator implements FileGenerator {
         emit(labelEnd + ":");
     }
 
-    // ── I/O ───────────────────────────────────────────────────────
+    // ── Entrada/salida ─────────────────────────────────────────────
 
     private void generateRead(Node node) {
         String id = node.getChild(0).getValue();
@@ -544,7 +503,6 @@ public class AsmCodeGenerator implements FileGenerator {
             String strName = generateStringExpr(expr);
             emit("    displayString " + strName);
         } else {
-            // Evaluate numeric expression, store in temp, display
             String temp = newTemp();
             generateNumericExpr(expr);
             emit("    fstp " + temp);
@@ -553,7 +511,7 @@ public class AsmCodeGenerator implements FileGenerator {
         emit("    newLine 1");
     }
 
-    // ── Utilities ─────────────────────────────────────────────────
+    // ── Utilidades ────────────────────────────────────────────────
 
     private String newLabel() {
         return "ET_" + (++labelCount);
@@ -569,18 +527,10 @@ public class AsmCodeGenerator implements FileGenerator {
         codeSection.append(line).append("\r\n");
     }
 
-    /**
-     * Sanitize a symbol name for ASM (replace characters not valid in TASM labels).
-     */
     private String sanitizeName(String name) {
-        // Symbol table constant keys start with _ (e.g. _INT_5, _STRING_hello)
-        // Variable names are just letters and digits — already valid
         return name.replace(".", "_").replace("-", "_").replace(" ", "_");
     }
 
-    /**
-     * Get the ASM name for a constant value by looking it up in the symbol table.
-     */
     private String getConstantAsmName(String value, DataType type) {
         String key = "_" + type + "_" + value;
         return sanitizeName(key);

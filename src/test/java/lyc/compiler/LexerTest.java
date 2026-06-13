@@ -6,7 +6,6 @@ import lyc.compiler.model.*;
 import org.apache.commons.text.CharacterPredicates;
 import org.apache.commons.text.RandomStringGenerator;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -16,8 +15,6 @@ import static lyc.compiler.constants.Constants.MAX_IDENTIFIER_LENGTH;
 import static lyc.compiler.constants.Constants.MAX_STRING_CONSTANT_LENGTH;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-
-//@Disabled
 public class LexerTest {
 
   private Lexer lexer;
@@ -61,16 +58,6 @@ public class LexerTest {
       nextToken();
     });
   }
-/*
-  @Test
-  public void invalidNegativeIntegerConstantValue() {
-    assertThrows(InvalidNumberException.class, () -> {
-      scan("%d".formatted(-9223372036854775807L));
-      nextToken();
-    });
-  }
-*/
-
   @Test
   public void assignmentWithExpressions() throws Exception {
     scan("c:=d*(e-21)/4");
